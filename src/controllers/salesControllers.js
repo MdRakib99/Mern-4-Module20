@@ -59,22 +59,6 @@ exports.quantityByProduct = async (req, res) => {
   }
 };
 
-exports.sortByRevenue = async (req, res) => {
-  try {
-    const result = await salesModel.aggregate([
-      {
-        $group: {
-          _id: "$product",
-          sum: { $sum: "$price" },
-        },
-      },
-    ]);
-    res.status(200).json({ status: "success", data: result });
-  } catch (error) {
-    res.status(200).json({ status: "fail", data: error });
-  }
-};
-
 exports.topProducts = async (req, res) => {
   try {
     const result = await salesModel.aggregate([
@@ -120,8 +104,8 @@ exports.revenueByMonth = async (req, res) => {
       $project: {
         year: { $year: "$date" },
         month: { $month: "$date" },
-        quantity: 1, // Assuming you have a field named "quantity" in your data model
-        price: 1, // Assuming you have a field named "price" in your data model
+        quantity: 1,
+        price: 1,
       },
     };
 
@@ -132,11 +116,10 @@ exports.revenueByMonth = async (req, res) => {
           year: "$year",
           month: "$month",
         },
-        revenue: { $sum: { $multiply: ["$quantity", "$price"] } }, // Calculate total revenue
+        revenue: { $sum: { $multiply: ["$quantity", "$price"] } },
       },
     };
 
-    // Sort stage: Sort by year and month
     let sortStage = {
       $sort: {
         "_id.year": 1,
@@ -152,6 +135,34 @@ exports.revenueByMonth = async (req, res) => {
     ]);
 
     res.status(200).json({ status: "success", data: result });
+  } catch (error) {
+    res.status(500).json({ status: "fail", data: error.message });
+  }
+};
+
+exports.highestQuantity = async (req, res) => {
+  try {
+    let result = await salesModel.aggregate([
+      {
+        $sort: { quantity: -1 }, // Sort in descending order of quantity
+      },
+      {
+        $limit: 1,
+      },
+      {
+        $group: {
+          _id: null,
+          highestQuantity: { $first: "$$ROOT" },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          highestQuantity: 1,
+        },
+      },
+    ]);
+    res.status(200).json({ status: "success", data: result[0] });
   } catch (error) {
     res.status(500).json({ status: "fail", data: error.message });
   }
